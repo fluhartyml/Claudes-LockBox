@@ -19,6 +19,9 @@ struct ItemListView: View {
     @State private var showPhotoPicker = false
     @State private var scannedPages: [Data] = []
     @State private var selectedPhotos: [PhotosPickerItem] = []
+    #if os(macOS)
+    @State private var scanTrigger = 0
+    #endif
 
     var filteredItems: [VaultItem] {
         let items = folder.items.sorted { $0.dateModified > $1.dateModified }
@@ -50,9 +53,8 @@ struct ItemListView: View {
                         #if os(iOS)
                         showScanner = true
                         #else
-                        // macOS has no live document scanner (VisionKit is iOS-only);
-                        // import a photo of the card instead.
-                        showPhotoPicker = true
+                        // macOS: Continuity Camera (Scan Documents / Take Photo from iPhone).
+                        scanTrigger += 1
                         #endif
                     } else if isPhotoFolder {
                         showPhotoPicker = true
@@ -117,6 +119,19 @@ struct ItemListView: View {
             }
             return true
         }
+        #if os(macOS)
+        .background(
+            ContinuityCameraButton(
+                trigger: scanTrigger,
+                onScan: { pages in
+                    scannedPages = pages
+                    showAddItem = true
+                },
+                onImportPhoto: { showPhotoPicker = true }
+            )
+            .frame(width: 0, height: 0)
+        )
+        #endif
     }
 
     @ViewBuilder
