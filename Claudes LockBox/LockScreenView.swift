@@ -27,7 +27,7 @@ struct LockScreenView: View {
                     .font(.system(size: 80))
                     .foregroundStyle(.blue)
 
-                Text("LockBox by Claude")
+                Text("Memory Aid Lockbox")
                     .font(.system(size: 28, weight: .bold))
 
                 Text("Tap to unlock")

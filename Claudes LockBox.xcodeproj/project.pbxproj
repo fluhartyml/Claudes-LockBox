@@ -418,7 +418,7 @@
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Claudes-LockBox-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "LockBox by Claude";
+				INFOPLIST_KEY_CFBundleDisplayName = "Memory Aid Lockbox";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Claude's LockBox uses the camera to scan cards and documents";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Claude's LockBox uses Face ID to protect your vault  ";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -474,7 +474,7 @@
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Claudes-LockBox-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "LockBox by Claude";
+				INFOPLIST_KEY_CFBundleDisplayName = "Memory Aid Lockbox";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Claude's LockBox uses the camera to scan cards and documents";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Claude's LockBox uses Face ID to protect your vault  ";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";

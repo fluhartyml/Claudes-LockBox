@@ -24,10 +24,10 @@ struct AboutView: View {
                             .shadow(radius: 4)
                     }
 
-                    Text("LockBox by Claude")
+                    Text("Memory Aid Lockbox")
                         .font(.system(size: 24, weight: .bold))
 
-                    Text("Version 1.0")
+                    Text("Version \(appVersion)")
                         .font(.system(size: 18))
                         .foregroundStyle(.secondary)
 
@@ -76,6 +76,10 @@ struct AboutView: View {
                 FeedbackView()
             }
         }
+    }
+
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
     }
 
     private var iconImage: Image? {

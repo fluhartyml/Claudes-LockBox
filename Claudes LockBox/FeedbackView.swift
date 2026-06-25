@@ -19,16 +19,20 @@ struct FeedbackView: View {
 
     let feedbackTypes = ["Bug Report", "Feature Request", "General Feedback"]
 
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+    }
+
     var deviceInfo: String {
         #if os(iOS)
         let device = UIDevice.current
         return """
         Device: \(device.model)
         System: \(device.systemName) \(device.systemVersion)
-        App: LockBox by Claude 1.0
+        App: Memory Aid Lockbox \(appVersion)
         """
         #else
-        return "App: LockBox by Claude 1.0 (macOS)"
+        return "App: Memory Aid Lockbox \(appVersion) (macOS)"
         #endif
     }
 
@@ -89,7 +93,7 @@ struct FeedbackView: View {
     }
 
     private func sendFeedback() {
-        let subject = "LockBox by Claude - \(feedbackType)"
+        let subject = "Memory Aid Lockbox - \(feedbackType)"
         let body = """
         \(feedbackText)
 

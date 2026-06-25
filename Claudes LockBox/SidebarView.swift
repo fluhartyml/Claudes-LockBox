@@ -35,7 +35,7 @@ struct SidebarView: View {
             }
             .onDelete(perform: deleteFolders)
         }
-        .navigationTitle("LockBox")
+        .navigationTitle("Memory Aid Lockbox")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
