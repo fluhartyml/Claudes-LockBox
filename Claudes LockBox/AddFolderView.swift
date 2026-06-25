@@ -54,6 +54,10 @@ struct AddFolderView: View {
                         .font(.system(size: 16))
                 }
             }
+            #if os(macOS)
+            .formStyle(.grouped)
+            .frame(minWidth: 420, minHeight: 480)
+            #endif
             .navigationTitle("New Folder")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

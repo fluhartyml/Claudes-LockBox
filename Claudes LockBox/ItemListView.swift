@@ -47,7 +47,13 @@ struct ItemListView: View {
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     if isCardFolder {
+                        #if os(iOS)
                         showScanner = true
+                        #else
+                        // macOS has no live document scanner (VisionKit is iOS-only);
+                        // import a photo of the card instead.
+                        showPhotoPicker = true
+                        #endif
                     } else if isPhotoFolder {
                         showPhotoPicker = true
                     } else {
@@ -85,6 +91,7 @@ struct ItemListView: View {
                 scannedPages = pages
             }
         }
+        #endif
         .photosPicker(isPresented: $showPhotoPicker, selection: $selectedPhotos, matching: .images)
         .onChange(of: selectedPhotos) { _, newPhotos in
             Task {
@@ -103,7 +110,6 @@ struct ItemListView: View {
                 }
             }
         }
-        #endif
         .dropDestination(for: String.self) { droppedStrings, _ in
             for text in droppedStrings {
                 let newItem = VaultItem(title: text, folder: folder)

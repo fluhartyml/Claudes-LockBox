@@ -84,6 +84,10 @@ struct AddItemView: View {
                         .font(.system(size: 16))
                 }
             }
+            #if os(macOS)
+            .formStyle(.grouped)
+            .frame(minWidth: 480, minHeight: 560)
+            #endif
             .navigationTitle("New Item")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
