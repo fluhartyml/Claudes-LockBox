@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
+import UniformTypeIdentifiers
 
 struct ItemListView: View {
     let folder: Folder
@@ -43,24 +44,21 @@ struct ItemListView: View {
             .onDelete(perform: deleteItems)
         }
         .navigationTitle(folder.name)
+        #if os(macOS)
+        .importsItemProviders([.pdf, .image]) { providers in
+            Task {
+                let pages = await ContinuityScanImport.pngPages(from: providers)
+                if !pages.isEmpty {
+                    scannedPages = pages
+                    showAddItem = true
+                }
+            }
+            return true
+        }
+        #endif
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                #if os(macOS)
-                if isCardFolder {
-                    ContinuityCameraButton(
-                        onScan: { pages in
-                            scannedPages = pages
-                            showAddItem = true
-                        },
-                        onImportPhoto: { showPhotoPicker = true }
-                    )
-                    .frame(width: 30, height: 22)
-                } else {
-                    Button { addTapped() } label: { Label("Add Item", systemImage: "plus") }
-                }
-                #else
                 Button { addTapped() } label: { Label("Add Item", systemImage: "plus") }
-                #endif
             }
         }
         #if os(iOS)
@@ -120,7 +118,11 @@ struct ItemListView: View {
 
     private func addTapped() {
         if isCardFolder {
-            showScanner = true        // iOS only (Mac Cards uses ContinuityCameraButton)
+            #if os(iOS)
+            showScanner = true
+            #else
+            showAddItem = true        // Mac: manual form; Continuity scan lives in the File menu
+            #endif
         } else if isPhotoFolder {
             showPhotoPicker = true
         } else {

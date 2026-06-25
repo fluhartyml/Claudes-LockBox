@@ -2,113 +2,61 @@
 //  ContinuityCameraScanner.swift
 //  Memory Aid Lockbox
 //
-//  macOS-only. Brings Continuity Camera ("Import from iPhone or iPad →
-//  Scan Documents / Take Photo") into the app. The iOS document scanner
-//  (VNDocumentCameraViewController) does not exist on macOS; on the Mac the
-//  scan is delivered through the Services / responder-chain mechanism:
-//  the button advertises that it accepts image/PDF data, the system inserts
-//  the Continuity Camera menu items, and the captured result is handed back
-//  via NSServicesMenuRequestor.readSelection(from:).
+//  macOS-only Continuity Camera support. On the Mac, the scanner is surfaced
+//  through the File menu (ImportFromDevicesCommands in the App scene) — the same
+//  place Apple's own apps put "Import from iPhone or iPad → Scan Documents /
+//  Take Photo". A view declares it accepts the result with .importsItemProviders,
+//  and the captured data arrives here as NSItemProviders.
 //
-//  A "Scan Documents" capture returns a multi-page PDF; we render each page
-//  to a PNG so the result matches how VaultItem already stores images
-//  (imageData: [Data]). An "Import Photo…" item is always present so the
-//  control is never a dead end.
+//  A "Scan Documents" capture is a multi-page PDF; we render each page to a PNG
+//  so the result matches how VaultItem stores images (imageData: [Data]).
 //
 
 #if os(macOS)
-import SwiftUI
 import AppKit
 import PDFKit
 import UniformTypeIdentifiers
 
-/// A toolbar "+" button that, on click, makes itself first responder and shows a
-/// menu the system populates with Continuity Camera items.
-struct ContinuityCameraButton: NSViewRepresentable {
-    var onScan: ([Data]) -> Void
-    var onImportPhoto: () -> Void
-
-    func makeNSView(context: Context) -> ContinuityScanButton {
-        let button = ContinuityScanButton()
-        button.bezelStyle = .texturedRounded
-        button.image = NSImage(systemSymbolName: "plus", accessibilityDescription: "Add Item")
-        button.imagePosition = .imageOnly
-        button.target = button
-        button.action = #selector(ContinuityScanButton.showImportMenu)
-        button.onScan = onScan
-        button.onImportPhoto = onImportPhoto
-        return button
-    }
-
-    func updateNSView(_ nsView: ContinuityScanButton, context: Context) {
-        nsView.onScan = onScan
-        nsView.onImportPhoto = onImportPhoto
-    }
-}
-
-final class ContinuityScanButton: NSButton, NSServicesMenuRequestor {
-    var onScan: (([Data]) -> Void)?
-    var onImportPhoto: (() -> Void)?
-
-    override var acceptsFirstResponder: Bool { true }
-
-    private static let pdfType = NSPasteboard.PasteboardType(UTType.pdf.identifier)
-
-    @objc func showImportMenu() {
-        window?.makeFirstResponder(self)
-        let menu = NSMenu()
-        let importItem = NSMenuItem(title: "Import Photo…",
-                                    action: #selector(importPhotoTapped),
-                                    keyEquivalent: "")
-        importItem.target = self
-        menu.addItem(importItem)
-        // The Services architecture inserts "Import from iPhone or iPad"
-        // (Take Photo / Scan Documents) when this menu is shown while self is
-        // first responder and reports it accepts image/PDF types.
-        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: bounds.height), in: self)
-    }
-
-    @objc private func importPhotoTapped() {
-        onImportPhoto?()
-    }
-
-    // MARK: Services / Continuity Camera
-
-    override func validRequestor(forSendType sendType: NSPasteboard.PasteboardType?,
-                                 returnType: NSPasteboard.PasteboardType?) -> Any? {
-        if sendType == nil,
-           let returnType,
-           returnType == Self.pdfType || returnType == .tiff || returnType == .png {
-            return self
-        }
-        return super.validRequestor(forSendType: sendType, returnType: returnType)
-    }
-
-    func readSelection(from pasteboard: NSPasteboard) -> Bool {
+enum ContinuityScanImport {
+    /// Convert Continuity Camera item providers (PDF scans or photos) to per-page PNGs.
+    static func pngPages(from providers: [NSItemProvider]) async -> [Data] {
         var pages: [Data] = []
-        if let pdfData = pasteboard.data(forType: Self.pdfType),
-           let pdf = PDFDocument(data: pdfData) {
-            for index in 0..<pdf.pageCount {
-                if let page = pdf.page(at: index), let png = Self.png(from: page) {
-                    pages.append(png)
+        for provider in providers {
+            if provider.hasItemConformingToTypeIdentifier(UTType.pdf.identifier),
+               let data = await loadData(provider, type: UTType.pdf.identifier),
+               let pdf = PDFDocument(data: data) {
+                for index in 0..<pdf.pageCount {
+                    if let page = pdf.page(at: index), let png = png(from: page) {
+                        pages.append(png)
+                    }
                 }
+            } else if let data = await loadImageData(provider),
+                      let image = NSImage(data: data),
+                      let png = png(from: image) {
+                pages.append(png)
             }
-        } else if let imageData = pasteboard.data(forType: .png) ?? pasteboard.data(forType: .tiff),
-                  let image = NSImage(data: imageData),
-                  let png = Self.png(from: image) {
-            pages.append(png)
         }
-        guard !pages.isEmpty else { return false }
-        onScan?(pages)
-        return true
+        return pages
     }
 
-    func writeSelection(to pasteboard: NSPasteboard,
-                        types: [NSPasteboard.PasteboardType]) -> Bool {
-        false
+    private static func loadData(_ provider: NSItemProvider, type: String) async -> Data? {
+        await withCheckedContinuation { continuation in
+            provider.loadDataRepresentation(forTypeIdentifier: type) { data, _ in
+                continuation.resume(returning: data)
+            }
+        }
     }
 
-    // MARK: Rendering
+    private static func loadImageData(_ provider: NSItemProvider) async -> Data? {
+        for type in [UTType.png.identifier, UTType.tiff.identifier,
+                     UTType.jpeg.identifier, UTType.image.identifier] {
+            if provider.hasItemConformingToTypeIdentifier(type),
+               let data = await loadData(provider, type: type) {
+                return data
+            }
+        }
+        return nil
+    }
 
     private static func png(from page: PDFPage) -> Data? {
         let bounds = page.bounds(for: .mediaBox)

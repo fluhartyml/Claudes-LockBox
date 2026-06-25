@@ -32,5 +32,9 @@ struct Claudes_LockBoxApp: App {
             LockScreenView()
         }
         .modelContainer(sharedModelContainer)
+        #if os(macOS)
+        // Adds "File → Import from iPhone or iPad → Scan Documents / Take Photo".
+        .commands { ImportFromDevicesCommands() }
+        #endif
     }
 }
