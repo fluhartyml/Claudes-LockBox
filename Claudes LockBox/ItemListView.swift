@@ -20,6 +20,9 @@ struct ItemListView: View {
     @State private var showPhotoPicker = false
     @State private var scannedPages: [Data] = []
     @State private var selectedPhotos: [PhotosPickerItem] = []
+    #if os(macOS)
+    @State private var showScannerSheet = false
+    #endif
 
     var filteredItems: [VaultItem] {
         let items = folder.items.sorted { $0.dateModified > $1.dateModified }
@@ -55,11 +58,22 @@ struct ItemListView: View {
             }
             return true
         }
+        .sheet(isPresented: $showScannerSheet) {
+            ScannerSheet { pages in
+                scannedPages = pages
+                showAddItem = true
+            }
+        }
         #endif
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { addTapped() } label: { Label("Add Item", systemImage: "plus") }
             }
+            #if os(macOS)
+            ToolbarItem(placement: .automatic) {
+                Button { showScannerSheet = true } label: { Label("Scan", systemImage: "scanner") }
+            }
+            #endif
         }
         #if os(iOS)
         .fullScreenCover(isPresented: $showAddItem) {
