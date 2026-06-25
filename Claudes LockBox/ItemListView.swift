@@ -19,9 +19,6 @@ struct ItemListView: View {
     @State private var showPhotoPicker = false
     @State private var scannedPages: [Data] = []
     @State private var selectedPhotos: [PhotosPickerItem] = []
-    #if os(macOS)
-    @State private var scanTrigger = 0
-    #endif
 
     var filteredItems: [VaultItem] {
         let items = folder.items.sorted { $0.dateModified > $1.dateModified }
@@ -48,22 +45,22 @@ struct ItemListView: View {
         .navigationTitle(folder.name)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    if isCardFolder {
-                        #if os(iOS)
-                        showScanner = true
-                        #else
-                        // macOS: Continuity Camera (Scan Documents / Take Photo from iPhone).
-                        scanTrigger += 1
-                        #endif
-                    } else if isPhotoFolder {
-                        showPhotoPicker = true
-                    } else {
-                        showAddItem = true
-                    }
-                } label: {
-                    Label("Add Item", systemImage: "plus")
+                #if os(macOS)
+                if isCardFolder {
+                    ContinuityCameraButton(
+                        onScan: { pages in
+                            scannedPages = pages
+                            showAddItem = true
+                        },
+                        onImportPhoto: { showPhotoPicker = true }
+                    )
+                    .frame(width: 30, height: 22)
+                } else {
+                    Button { addTapped() } label: { Label("Add Item", systemImage: "plus") }
                 }
+                #else
+                Button { addTapped() } label: { Label("Add Item", systemImage: "plus") }
+                #endif
             }
         }
         #if os(iOS)
@@ -119,19 +116,16 @@ struct ItemListView: View {
             }
             return true
         }
-        #if os(macOS)
-        .background(
-            ContinuityCameraButton(
-                trigger: scanTrigger,
-                onScan: { pages in
-                    scannedPages = pages
-                    showAddItem = true
-                },
-                onImportPhoto: { showPhotoPicker = true }
-            )
-            .frame(width: 0, height: 0)
-        )
-        #endif
+    }
+
+    private func addTapped() {
+        if isCardFolder {
+            showScanner = true        // iOS only (Mac Cards uses ContinuityCameraButton)
+        } else if isPhotoFolder {
+            showPhotoPicker = true
+        } else {
+            showAddItem = true
+        }
     }
 
     @ViewBuilder

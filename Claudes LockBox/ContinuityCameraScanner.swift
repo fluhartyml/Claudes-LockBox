@@ -6,14 +6,14 @@
 //  Scan Documents / Take Photo") into the app. The iOS document scanner
 //  (VNDocumentCameraViewController) does not exist on macOS; on the Mac the
 //  scan is delivered through the Services / responder-chain mechanism:
-//  an NSView advertises that it accepts image/PDF data, the system inserts
+//  the button advertises that it accepts image/PDF data, the system inserts
 //  the Continuity Camera menu items, and the captured result is handed back
 //  via NSServicesMenuRequestor.readSelection(from:).
 //
 //  A "Scan Documents" capture returns a multi-page PDF; we render each page
 //  to a PNG so the result matches how VaultItem already stores images
-//  (imageData: [Data]). A photo-library fallback is offered in the same menu
-//  so the control is never a dead end if no device is available.
+//  (imageData: [Data]). An "Import Photo…" item is always present so the
+//  control is never a dead end.
 //
 
 #if os(macOS)
@@ -22,43 +22,31 @@ import AppKit
 import PDFKit
 import UniformTypeIdentifiers
 
-/// Hidden helper view that, when its `trigger` changes, pops a menu containing
-/// the system's Continuity Camera items plus an "Import Photo…" fallback.
+/// A toolbar "+" button that, on click, makes itself first responder and shows a
+/// menu the system populates with Continuity Camera items.
 struct ContinuityCameraButton: NSViewRepresentable {
-    /// Increment to request the menu.
-    var trigger: Int
-    /// Called with one PNG per scanned/captured page.
     var onScan: ([Data]) -> Void
-    /// Fallback when the user has no nearby device.
     var onImportPhoto: () -> Void
 
-    func makeNSView(context: Context) -> ContinuityScanView {
-        let view = ContinuityScanView()
-        view.onScan = onScan
-        view.onImportPhoto = onImportPhoto
-        context.coordinator.view = view
-        return view
+    func makeNSView(context: Context) -> ContinuityScanButton {
+        let button = ContinuityScanButton()
+        button.bezelStyle = .texturedRounded
+        button.image = NSImage(systemSymbolName: "plus", accessibilityDescription: "Add Item")
+        button.imagePosition = .imageOnly
+        button.target = button
+        button.action = #selector(ContinuityScanButton.showImportMenu)
+        button.onScan = onScan
+        button.onImportPhoto = onImportPhoto
+        return button
     }
 
-    func updateNSView(_ nsView: ContinuityScanView, context: Context) {
+    func updateNSView(_ nsView: ContinuityScanButton, context: Context) {
         nsView.onScan = onScan
         nsView.onImportPhoto = onImportPhoto
-        if trigger != context.coordinator.lastTrigger {
-            context.coordinator.lastTrigger = trigger
-            // Defer so the view is in the window's responder chain.
-            DispatchQueue.main.async { nsView.presentScanMenu() }
-        }
-    }
-
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    final class Coordinator {
-        var lastTrigger = 0
-        weak var view: ContinuityScanView?
     }
 }
 
-final class ContinuityScanView: NSView, NSServicesMenuRequestor {
+final class ContinuityScanButton: NSButton, NSServicesMenuRequestor {
     var onScan: (([Data]) -> Void)?
     var onImportPhoto: (() -> Void)?
 
@@ -66,10 +54,26 @@ final class ContinuityScanView: NSView, NSServicesMenuRequestor {
 
     private static let pdfType = NSPasteboard.PasteboardType(UTType.pdf.identifier)
 
-    // MARK: Services / Continuity Camera plumbing
+    @objc func showImportMenu() {
+        window?.makeFirstResponder(self)
+        let menu = NSMenu()
+        let importItem = NSMenuItem(title: "Import Photo…",
+                                    action: #selector(importPhotoTapped),
+                                    keyEquivalent: "")
+        importItem.target = self
+        menu.addItem(importItem)
+        // The Services architecture inserts "Import from iPhone or iPad"
+        // (Take Photo / Scan Documents) when this menu is shown while self is
+        // first responder and reports it accepts image/PDF types.
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: bounds.height), in: self)
+    }
 
-    // Tell the Services architecture we can receive an image or PDF (sendType nil = we
-    // only receive). Returning self is what makes macOS insert the Continuity Camera items.
+    @objc private func importPhotoTapped() {
+        onImportPhoto?()
+    }
+
+    // MARK: Services / Continuity Camera
+
     override func validRequestor(forSendType sendType: NSPasteboard.PasteboardType?,
                                  returnType: NSPasteboard.PasteboardType?) -> Any? {
         if sendType == nil,
@@ -80,10 +84,8 @@ final class ContinuityScanView: NSView, NSServicesMenuRequestor {
         return super.validRequestor(forSendType: sendType, returnType: returnType)
     }
 
-    // Receives the captured document/photo.
     func readSelection(from pasteboard: NSPasteboard) -> Bool {
         var pages: [Data] = []
-
         if let pdfData = pasteboard.data(forType: Self.pdfType),
            let pdf = PDFDocument(data: pdfData) {
             for index in 0..<pdf.pageCount {
@@ -96,43 +98,17 @@ final class ContinuityScanView: NSView, NSServicesMenuRequestor {
                   let png = Self.png(from: image) {
             pages.append(png)
         }
-
         guard !pages.isEmpty else { return false }
         onScan?(pages)
         return true
     }
 
-    // Required by NSServicesMenuRequestor; we never provide data outward.
     func writeSelection(to pasteboard: NSPasteboard,
                         types: [NSPasteboard.PasteboardType]) -> Bool {
         false
     }
 
-    // MARK: Menu
-
-    func presentScanMenu() {
-        window?.makeFirstResponder(self)
-        let menu = NSMenu()
-
-        // Our guaranteed fallback so the menu is never empty.
-        let importItem = NSMenuItem(title: "Import Photo…",
-                                    action: #selector(importPhotoTapped),
-                                    keyEquivalent: "")
-        importItem.target = self
-        menu.addItem(importItem)
-
-        // The Services architecture inserts "Import from iPhone or iPad"
-        // (Take Photo / Scan Documents) into this menu when it is displayed
-        // while self is the first responder and accepts image/PDF types.
-        let origin = NSPoint(x: 0, y: bounds.height)
-        menu.popUp(positioning: nil, at: origin, in: self)
-    }
-
-    @objc private func importPhotoTapped() {
-        onImportPhoto?()
-    }
-
-    // MARK: Rendering helpers
+    // MARK: Rendering
 
     private static func png(from page: PDFPage) -> Data? {
         let bounds = page.bounds(for: .mediaBox)
