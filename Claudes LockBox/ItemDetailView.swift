@@ -44,7 +44,9 @@ struct ItemDetailView: View {
             .padding()
         }
         .navigationTitle("")
+        #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
+        #endif
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {

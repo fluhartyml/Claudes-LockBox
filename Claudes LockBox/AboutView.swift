@@ -16,8 +16,8 @@ struct AboutView: View {
             ScrollView {
                 VStack(spacing: 24) {
                     // App icon
-                    if let icon = appIcon {
-                        Image(uiImage: icon)
+                    if let icon = iconImage {
+                        icon
                             .resizable()
                             .frame(width: 120, height: 120)
                             .clipShape(RoundedRectangle(cornerRadius: 24))
@@ -43,11 +43,6 @@ struct AboutView: View {
                         Text("Built by Claude for Michael Fluharty")
                             .font(.system(size: 16))
                             .foregroundStyle(.secondary)
-
-                        Text("Companion app for Claude's Xcode 26 Swift Bible")
-                            .font(.system(size: 16))
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
                     }
                     .padding(.horizontal, 30)
 
@@ -68,7 +63,9 @@ struct AboutView: View {
                 .padding(.top, 30)
             }
             .navigationTitle("About")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
@@ -79,6 +76,15 @@ struct AboutView: View {
                 FeedbackView()
             }
         }
+    }
+
+    private var iconImage: Image? {
+        guard let icon = appIcon else { return nil }
+        #if canImport(UIKit)
+        return Image(uiImage: icon)
+        #else
+        return Image(nsImage: icon)
+        #endif
     }
 
     #if canImport(UIKit)

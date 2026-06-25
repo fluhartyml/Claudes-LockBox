@@ -10,17 +10,7 @@ import SwiftData
 
 struct ContentView: View {
     var body: some View {
-        TabView {
-            VaultTabView()
-                .tabItem {
-                    Label("Vault", systemImage: "lock.shield.fill")
-                }
-
-            UnderTheHoodView()
-                .tabItem {
-                    Label("Under the Hood", systemImage: "wrench.and.screwdriver")
-                }
-        }
+        VaultTabView()
     }
 }
 
@@ -42,7 +32,7 @@ struct VaultTabView: View {
                 showAddFolder: $showAddFolder
             )
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: aboutButtonPlacement) {
                     Button {
                         showAbout = true
                     } label: {
@@ -87,6 +77,14 @@ struct VaultTabView: View {
         .onAppear {
             seedDefaultFolders()
         }
+    }
+
+    private var aboutButtonPlacement: ToolbarItemPlacement {
+        #if os(iOS)
+        .topBarLeading
+        #else
+        .navigation
+        #endif
     }
 
     private func seedDefaultFolders() {

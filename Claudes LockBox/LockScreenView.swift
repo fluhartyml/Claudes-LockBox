@@ -53,7 +53,11 @@ struct LockScreenView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            #if os(iOS)
             .background(Color(.systemBackground))
+            #else
+            .background(Color(NSColor.windowBackgroundColor))
+            #endif
             .ignoresSafeArea()
             .onAppear {
                 authenticate()

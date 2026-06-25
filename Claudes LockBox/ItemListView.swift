@@ -58,12 +58,21 @@ struct ItemListView: View {
                 }
             }
         }
+        #if os(iOS)
         .fullScreenCover(isPresented: $showAddItem) {
             AddItemView(folder: folder, initialImages: $scannedPages)
                 .onDisappear {
                     scannedPages = []
                 }
         }
+        #else
+        .sheet(isPresented: $showAddItem) {
+            AddItemView(folder: folder, initialImages: $scannedPages)
+                .onDisappear {
+                    scannedPages = []
+                }
+        }
+        #endif
         #if os(iOS)
         .sheet(isPresented: $showScanner, onDismiss: {
             if !scannedPages.isEmpty {
